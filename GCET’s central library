@@ -1,0 +1,185 @@
+/* A C program to arrange the books for the GCET’s central library,
+ and determine the minimum number of moves that are necessary to sort the bookshelf. */
+
+#include <stdio.h> // a header file
+
+int N,i; // Declaring two global variables 
+
+/* Function 1 prototype (the function that sorts the bookshelf in ascending order
+and determines the minimum number of moves) */
+void Ascending_Order (int BooksNum[]); 
+/* Function 2 prototype (the function that sorts the bookshelf in descending order
+and determines the minimum number of moves) */
+void Descending_Order (int NumOfBooks[]);
+
+// main function
+int main (void){  // the starting of the main function
+	
+	int books[100]; // declaring an integer array
+	char order [100]; // declaring a char array
+	
+	printf ("\n\t\t\t\t\t******GCET\'s CENTRAL LIBRARY******\n\n\n");
+	
+	// Asking the librarian to enter the number of the books:
+	printf ("How many books do you want to arrange?  ");
+	scanf ("%d", &N);
+	
+	/* asking the librarian to enter the initial arrangement of the books
+	 with the help of the for loop */
+	printf ("\nEnter the initial arrangement of the books:\n\n");
+	
+	for (i = 0; i < N; i++){
+		
+		printf("==> ");
+		scanf ("%d", &books[i]);
+	} // End of for loop
+	
+	/* an infinite while loop to ask the librarian to enter the type of the arrangement 
+	(ascending order or descending order). The loop terminates only when the librarian enters
+	 the type of the arrangement correctly. Otherwise, it will ask the librarian again to enter
+	 the type of the arrangement  */
+	while (1){
+	
+		// Asking the librarian to enter the type of the arrangement:
+		printf("\n\nDo you want to arrange the books in ascending order or in descending order?\n\n");
+		printf("\t\t\t*For ascending order write ascending.\n\t\t\t For descending order write descending*\n==> ");
+		scanf("%s", order);
+		
+		// an if statement is used (if the librarian wants to arrange the books in ascending order)
+		if (strcmp(order , "ascending") == 0){
+			
+			/* Function 1 call (to arrange the books in	ascending order and to
+			determine the minimum number of moves */
+			Ascending_Order (books); 
+			break; // break statement to terminate the infinite while loop
+		} // end of the if statement
+		
+		// an else-if statement is used (if the librarian wants to arrange the books in descending order)
+		else if (strcmp(order , "descending") == 0){
+			
+			/* Function 2 call (to arrange the books in	descending order and to
+			determine the minimum number of moves */
+			Descending_Order (books);
+			break; // break statement to terminate the infinite while loop
+		} // end of the else-if statement
+		
+		// an else clause is used if the librarian did not enter ascending or descending
+		else {
+			
+			printf("Invalid arrangement type. Please try again\n\n");
+		} // end of the else clause
+
+	} // end of the infinite while loop
+	
+	return 0; // return statement (returns 0)
+} // end of the main function 
+
+/* Function 1 (the function that sorts the bookshelf in ascending order
+and determines the minimum number of moves)*/
+void Ascending_Order (int BooksNum[]){ // the starting of Function 1
+		
+	// declaring variables:
+	int ascending, j, moves, temp;
+	
+	// initializing moves to 0:
+	moves = 0;
+	
+	/* a nested for loop and two if statements are used to
+	 sort the bookshelf in ascending order and to determine 
+	 the minimum number of moves */
+	for (i = 0; i < N; i++) { // outer for loop
+		
+		// initializing temp to BooksNum[i] (*(BooksNum + i))
+		temp = *(BooksNum + i); 
+	
+        for (j = i + 1; j < N; j++) { // inner for loop
+        	
+        	// an if statement to sort the bookshelf in ascending order:
+            if (*(BooksNum + i) > *(BooksNum + j)) {
+            	
+                ascending = *(BooksNum + i);
+                *(BooksNum + i) = *(BooksNum + j);
+                *(BooksNum + j) = ascending;
+                
+            } // end of the if statement
+        } // end of the inner for loop
+        
+        // an if statement to determine the minimum number of moves
+        if(*(BooksNum + i)!=temp){
+			 
+ 				moves++; 		
+ 		} // end of the if statement 
+		 	
+    } // end of the outer for loop
+    
+    	printf("\n\n**********************************************************************************************************\n\n");
+    	
+    	// printing the arrangement of the books in ascending order with the help of a for loop: 
+    	printf("\t\t\t\tThe arrangement of the books in ascending order \n\n\t\t\t\t==> ");
+			for(i = 0; i < N; i++){
+				
+				printf("%d   ", *(BooksNum + i));
+			} // end of the for loop
+			
+			// printing the minimum number of moves that are necessary to sort the bookshelf:
+			printf("\n\n\t\t\t\tThe minimum number of moves  = %d ",moves );
+			printf("\n\n**********************************************************************************************************");
+    
+	return; // return statement (returns nothing because the return-value-type is void)
+} // end if Function 1
+
+/* Function 2 (the function that sorts the bookshelf in ascending order
+and determines the minimum number of moves)*/
+void Descending_Order (int NumOfBooks[]){ // The starting of Function 2
+		
+	// declaring variables:
+	int descending, j, moves, temp;
+	
+	// initializing moves to 0:
+	moves = 0;
+
+	/* a nested for loop and two if statements are used to
+	 sort the bookshelf in descending order and determines 
+	 the minimum number of moves */
+	for (i = 0; i < N; i++) { // outer for loop
+		
+		// initializing temp to NumOfBooks[i] (*(NumOfBooks+i))
+		temp = *(NumOfBooks+i); 
+		
+        for (j = i + 1; j < N; j++) { //inner for loop
+        	
+        	// an if statement to sort the bookshelf in descending order:
+            if (*(NumOfBooks+i) < *(NumOfBooks+j)) {
+            	
+                descending = *(NumOfBooks+i);
+                *(NumOfBooks+i) = *(NumOfBooks+j);
+                *(NumOfBooks+j) = descending;
+                
+            } // end of the if statement	
+        } // end of the inner for loop
+        
+        // an if statement to determine the minimum number of moves
+        if(*(NumOfBooks+i)!=temp){
+			 
+ 			moves++; 	
+ 		} // end of the if statement
+		 	 	
+    } // end of the outer for loop
+    
+    printf("\n\n**********************************************************************************************************\n\n");
+    
+    // printing the arrangement of the books in descending order with the help of a for loop: 
+    printf("\t\t\t\tThe arrangement of the books in descending order \n\n\t\t\t\t==>  ");
+			for(i = 0; i < N; i++){
+				
+				printf("%d   ", *(NumOfBooks+i));
+			}
+			
+			// printing the minimum number of moves that are necessary to sort the bookshelf:
+			printf("\n\n\t\t\t\tThe minimum number of moves  = %d ",moves );
+			printf("\n\n**********************************************************************************************************");
+	
+	return; // return statement (returns nothing because the return-value-type is void)
+} // end of Function 2
+
+// end of the program
