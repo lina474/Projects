@@ -1,0 +1,276 @@
+// A C program that design the tic-tac-toe game played between two players
+
+// The header files
+#include<stdio.h> 
+#include <conio.h> // A header file to use getch() function
+
+/* Declaring and initializing A char global array  
+with 9 elements for the 3x3 cells of the tic-tac-toe game */
+char Area[9] = {'1', '2', '3', '4', '5', '6', '7','8','9'};
+
+
+// Function 1 prototype (creates the board of the tic-tac-toe game)
+void Create_board(); 
+
+// Function 2 prototype (marks the board of the tic-tac-toe game) 
+void Mark_Board (int AreaNO, char mark, int user);
+
+// Function 3 prototype (checks when the player (player 1 or player 2) will win)
+int Check_Win ();
+
+/* Function 4 prototype (the function that prints the winner announcement 
+(an announcement to let the players know who wins)
+, or prints the draw game announcement) */
+void Announcement (int y, int person);
+
+
+// main function:
+int main (void){ // The starting of the main function 
+	
+	// Declaring variables:
+	int player, AreaNumber, x;
+	char X_or_O;
+	
+	// Initializing the variable player to 1
+	player = 1;
+	
+	// Initializing the variable x to -1
+	x = -1;
+	
+	/* A while loop that terminates when one player wins (x = 1) 
+	or when the game ends with no results (x = 0) */
+	while (x == -1){
+		
+		// Function call (the function that creates the board)
+		Create_board();
+		
+		// An if-else statement to decide whether it's player 1 turn or player 2 turn
+		if (player %2 == 0){
+			
+			player = 2;
+		} // end of if statement
+		else {
+			player = 1;
+		} // end of else clause
+		
+		// A switch statement to let player 1 uses X and player 2 uses O
+		switch (player){
+			
+			case 1:
+					X_or_O = 'X';
+					break;
+			
+			default:
+					X_or_O = 'O';					
+		} //end of switch statement
+		
+		// Asking the player to enter the number of the box area that he/she wants to put X/O inside it
+		printf ("Player %d, please enter the area number: ", player);
+		scanf("%d", &AreaNumber);
+		
+		// Function call (the function that marks the board of the tic-tac-toe game)
+		Mark_Board ( AreaNumber, X_or_O, player);
+		
+		// Initializing the variable x to Check_Win function (function call)
+		x = Check_Win ();
+		
+		// increment the variable player so that the next player can play 
+		player ++;
+				
+	} // End of the while loop
+	
+	// Function call (the function that creates the board)
+	Create_board();
+	
+	/* Function call (the function that prints the winner announcement 
+	(an announcement to let the players know who wins)
+	, or prints the draw game announcement) */
+	Announcement (x,player);
+	
+	return 0; // return statement (returns 0)
+} // End of the main function
+
+// Function 1 (the function that creates the board)
+void Create_board(){ // The starting of Function 1
+	
+	/* system("cls") is used to not print the board again and again for each move
+	. Therefore, all the moves will be shown on the same board */
+	system("cls");
+	
+	printf("\t\t\t\t      Tic-Tac-Toe Game\n\n");
+	printf("\t\t\tPlayer 1 (X)\t\t\tPlayer 2 (O)\n\n\n");
+	
+	// start creating the 3x3 board:
+	printf("\t\t\t\t          |     |     \n");
+	//printing the values of the first 3 array elements (Area[]) on the first row
+    printf("\t\t\t\t       %c  |  %c  |  %c \n", Area[0], Area[1], Area[2]); 
+    printf("\t\t\t\t     _____|_____|_____\n");
+    printf("\t\t\t\t          |     |     \n");
+    //printing the values of the next 3 array elements (Area[]) on the second row
+    printf("\t\t\t\t       %c  |  %c  |  %c \n", Area[3], Area[4], Area[5]);
+    printf("\t\t\t\t     _____|_____|_____\n");
+    printf("\t\t\t\t          |     |     \n");
+    //printing the values of the last 3 array elements (Area[]) on the third row
+    printf("\t\t\t\t       %c  |  %c  |  %c \n", Area[6], Area[7], Area[8]);
+    printf("\t\t\t\t          |     |     \n\n");
+	
+	return; // return statement (returns nothing because the return-value-type is void)
+} // End of Function 1
+
+// Function 2 (the function that marks the board of the tic-tac-toe game)
+void Mark_Board (int AreaNO, char mark, int user){ // The start of Function 2
+	
+	/* Using if statement and else-if statements to mark the entered area number
+	with X or O depending on which player (user) is playing (player 1 (X) or player 2 (O)) */
+	if (AreaNO == 1 && Area[0] == '1'){
+			
+			Area[0] = mark;	
+		}
+		
+		else if (AreaNO == 2 && Area[1] == '2'){
+			
+			Area[1] = mark;	
+		}
+		
+		else if (AreaNO == 3 && Area[2] == '3'){
+			
+			Area[2] = mark;	
+		}
+		
+		else if (AreaNO == 4 && Area[3] == '4'){
+			
+			Area[3] = mark;	
+		}
+		
+		else if (AreaNO == 5 && Area[4] == '5'){
+			
+			Area[4] = mark;	
+		}
+		
+		else if (AreaNO == 6 && Area[5] == '6'){
+			
+			Area[5] = mark;	
+		}
+		
+		else if (AreaNO == 7 && Area[6] == '7'){
+			
+			Area[6] = mark;	
+		}
+		
+		else if (AreaNO == 8 && Area[7] == '8'){
+			
+			Area[7] = mark;	
+		}
+		
+		else if (AreaNO == 9 && Area[8] == '9'){
+			
+			Area[8] = mark;	
+		}
+		
+		/* Using an else clause (if the player (user) enters a number that is not
+		 from 1 to 9, or a number that is entered before */
+		else{ 
+			
+			printf ("The move is invalid, press on any key to try again ");
+			
+			--user; /* decrement user so that the same player (user)
+			            can enter a number again after pressing on any key */
+			              
+			 getch(); // getch() is used to hold the output screen for some time until a key is pressed
+		}
+	
+	return; // return statement (returns nothing because the return-value-type is void)
+} // End of Function 2
+
+// Function 3 ( the function that checks when the player (player 1 or player 2) will win)
+int Check_Win (){ // The starting of Function 3
+	
+	/* The winner is the one who completes the horizontal, 
+	vertical, or diagonal sequence of three similar signs*/
+	
+	
+	/* If the player wins, the function returns 1 
+	  (if statement and else-if statements are used for that). 
+	  
+	   If the game ends with no results, the function returns 0 
+	   (an else-if statement is used for that).
+	   
+	   If the game does not finish (in progress), the function returns -1 
+	   (an else clause is used for that) */
+	   
+	// Diagonal Match   
+	if (Area[0] == Area[4] && Area[4] == Area[8]){
+	   
+        return 1;  
+    } 
+    else if (Area[2] == Area[4] && Area[4] == Area[6]){
+	
+        return 1;  
+    } 
+	
+	// Vertical Match   
+    else if (Area[0] == Area[3] && Area[3] == Area[6]){
+	
+        return 1;
+    }    
+    else if (Area[1] == Area[4] && Area[4] == Area[7]){
+	
+        return 1;
+    }    
+    else if (Area[2] == Area[5] && Area[5] == Area[8]){
+	
+        return 1;
+    }
+	
+	// Horizontal Match       
+    else if (Area[0] == Area[1] && Area[1] == Area[2]){
+	
+        return 1;
+    }    
+    else if (Area[3] == Area[4] && Area[4] == Area[5]){
+	
+        return 1;
+    }    
+    else if (Area[6] == Area[7] && Area[7] == Area[8]){
+	
+        return 1;
+	}
+	
+	// If the game ends with no results
+	else if (Area[0] != '1' && Area[1] != '2' && Area[2] != '3'
+	         && Area[3] != '4' && Area[4] != '5' && Area[5] != '6' 
+	         && Area[6] != '7' && Area[7] != '8' && Area[8] != '9'){
+			 
+        return 0;
+    }
+    
+    // If the game does not finish (in progress)
+    else{
+	
+        return  - 1;
+	}
+} // End of function 3
+
+/* Function 4 (the function that prints the winner announcement 
+(an announcement to let the players know who wins)
+, or prints the draw game announcement) */
+void Announcement (int y, int person){
+	
+	/* A switch statement to print the announcement message
+	if y = 1 (prints the winner announcement). Otherwise,
+	the function prints the draw game announcement */
+	switch (y){
+			
+			case 1:
+				
+					printf("Player %d Wins ", --person);
+					break;
+			
+			default:
+					printf("Game Draw");				
+	} // End of switch statement 
+		
+		return; // return statement (returns nothing because the return-value-type is void)
+} // End of function 4
+
+// End of the program 
