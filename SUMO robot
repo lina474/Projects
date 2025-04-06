@@ -1,0 +1,192 @@
+/* C++ code to show the working of the SUMO robot */
+
+/* Defining the variables that represents the output of the four IR sensors
+ to the pins that they are connected to in the Arduino UNO board */
+#define LS1 4 // left sensor (front)
+#define RS1 5 // right sensor (front)
+#define LS2 6 // left sensor (back)
+#define RS2 7 // right sensor (back)
+
+/* Declaring the variables that represents the the input of the L298N dual motor controller
+and initialize them to the pins that they are connected to in the Arduino UNO board */
+// left motors
+#define LeftMotors_SpeedPin 11 
+#define LeftMotors_ForwardPin 13
+#define LeftMotors_BackwardPin 12
+// right motors
+#define RightMotors_SpeedPin 10
+#define RightMotors_ForwardPin 8 
+#define RightMotors_BackwardPin 9 
+
+/* Declaring the variables that represents the echo and trig pin of the ultrasonic sensor
+and initialize them to the pins that they are connected to in the Arduino UNO board */
+const int Echo_pin = A1;
+const int Trig_pin = A0;
+/* Declaring the variables that represents duration and distance 
+to calculate the distance by the ultrasonic sensor*/
+float distance, duration;
+
+
+void setup() {
+ pinMode(Echo_pin, INPUT); // Pin A1 is an input and connected to the Echo pin of the ultrasonic sensor 
+ pinMode(Trig_pin, OUTPUT); // Pin A0 is an output and connected to the Trig pin of the ultrasonic sensor
+ pinMode(LS1, INPUT); // Pin 4 is an input and connected to the output of the left IR sensor
+ pinMode(RS1, INPUT); // Pin 5 is an input and connected to the output of the left IR sensor
+ pinMode(LS2, INPUT); // Pin 6 is an input and connected to the output of the left IR sensor
+ pinMode(RS2, INPUT); // Pin 7 is an input and connected to the output of the left IR sensor
+ pinMode(LeftMotors_SpeedPin, OUTPUT); // Pin 11 is an output and connected to pin ENA in the L298N dual motor controller
+ pinMode(LeftMotors_ForwardPin, OUTPUT); // Pin 13 is an output and connected to pin IN1 in the L298N dual motor controller
+ pinMode(LeftMotors_BackwardPin, OUTPUT); // Pin 12 is an output and connected to pin IN2 in the L298N dual motor controller
+ pinMode(RightMotors_SpeedPin, OUTPUT); // Pin 10 is an output and connected to pin ENB in the L298N dual motor controller
+ pinMode(RightMotors_ForwardPin, OUTPUT); // Pin 8 is an output and connected to pin IN4 in the L298N dual motor controller
+ pinMode(RightMotors_BackwardPin, OUTPUT); // Pin 9 is an output and connected to pin IN3 in the L298N dual motor controller
+ Serial.begin(9600); // Starts the serial communication
+
+ /* Set left motors and right motors speed at 90 */
+ analogWrite(LeftMotors_SpeedPin, 90);
+ analogWrite(RightMotors_SpeedPin, 90);
+ 
+ }
+/* The functions that will be used to control the movement of the motors */
+
+/* goForward() function makes all motors move forward */
+void goForward() 
+{
+digitalWrite(LeftMotors_ForwardPin, HIGH); // set LeftMotors_ForwardPin (13) on
+digitalWrite(LeftMotors_BackwardPin, LOW); // set LeftMotors_BackwardPin (12) off
+digitalWrite(RightMotors_ForwardPin, HIGH); // set RightMotors_ForwardPin (8) on
+digitalWrite(RightMotors_BackwardPin, LOW); // set RightMotors_BackwardPin (9) off
+
+}
+
+/* goBackward() function makes all motors move backward */
+void goBackward() {
+digitalWrite(LeftMotors_ForwardPin, LOW); // set LeftMotors_ForwardPin (13) off
+digitalWrite(LeftMotors_BackwardPin, HIGH); // set LeftMotors_BackwardPin (12) on
+digitalWrite(RightMotors_ForwardPin, LOW); // set RightMotors_ForwardPin (8) off
+digitalWrite(RightMotors_BackwardPin, HIGH); // set RightMotors_BackwardPin (9) on
+}
+
+/* stop() function makes all motors stop rotating */
+void stop() {
+digitalWrite(LeftMotors_ForwardPin, LOW); // set LeftMotors_ForwardPin (13) off
+digitalWrite(LeftMotors_BackwardPin, LOW); // set LeftMotors_BackwardPin (12) off
+digitalWrite(RightMotors_ForwardPin, LOW); // set RightMotors_ForwardPin (8) off
+digitalWrite(RightMotors_BackwardPin, LOW); // set RightMotors_BackwardPin (9) off
+}
+
+/* RotateCounterClockwise() function makes left motors move forward and right motors move backward, so Counterclockwise rotation will be done */
+void RotateCounterClockwise() {
+digitalWrite(LeftMotors_ForwardPin, HIGH); // set LeftMotors_ForwardPin (13) on
+digitalWrite(LeftMotors_BackwardPin, LOW); // set LeftMotors_BackwardPin (12) off
+digitalWrite(RightMotors_ForwardPin, LOW); // set RightMotors_ForwardPin (8) off
+digitalWrite(RightMotors_BackwardPin, HIGH); // set RightMotors_BackwardPin (9) on
+}
+
+/* RotateClockwise() function makes left motors move backward and right motors move forward, so clockwise rotation will be done */
+void RotateClockwise() {
+digitalWrite(LeftMotors_ForwardPin, LOW); // set LeftMotors_ForwardPin (13) off
+digitalWrite(LeftMotors_BackwardPin, HIGH); // set LeftMotors_BackwardPin (12) on
+digitalWrite(RightMotors_ForwardPin, HIGH); // set RightMotors_ForwardPin (8) on
+digitalWrite(RightMotors_BackwardPin, LOW); // set RightMotors_BackwardPin (9) off
+}
+
+
+void loop() {
+
+  digitalWrite(Trig_pin, LOW); // set the Trig pin (A0) off
+  delayMicroseconds(2); // Pauses for 2 microseconds
+  digitalWrite(Trig_pin, HIGH); // set the Trig pin (A0) on
+  delayMicroseconds(2); // Pauses for 2 microseconds
+  digitalWrite(Trig_pin, LOW); // set the Trig pin (A0) off
+  delayMicroseconds(2); // Pauses for 2 microseconds
+
+  duration = pulseIn (Echo_pin, HIGH); // Reading the pulse (High) on pin A1
+  
+  distance = duration/58.2; // The equation that calculates the distance by the ultrasonic sensor 
+
+/* Printing out distance value */
+ Serial.print("Distance : ");
+ Serial.println(distance);
+
+/* if statements to control the movement of the motors depending on the 4 IR sensors readings and the ultrasonic sensor readings */
+
+if(!(digitalRead(LS1)) && !(digitalRead(RS1)) && !(digitalRead(LS2)) && !(digitalRead(RS2))) 
+{
+
+if (distance >= 0 && distance <= 35) 
+//move forward if there is a non-black object in front of all IR sensors and the ultrasonic sensor reading is in the range >= 0cm and <= 35cm
+{
+  goForward();
+}
+else
+//rotate counterclockwise if there is a non-black object in front of all IR sensors and the ultrasonic sensor reading is not in the range >= 0cm and <= 35cm
+{
+  RotateCounterClockwise(); 
+ }
+}
+
+if(digitalRead(LS1) && digitalRead(RS1) && !(digitalRead(LS2)) && !(digitalRead(RS2))) 
+//move backward then rotate counterclockwise if there is a non-black object only in front of both back IR sensors 
+{
+goBackward();
+delay (600);
+RotateCounterClockwise(); 
+delay (600);
+}
+
+if(!(digitalRead(LS1)) && !(digitalRead(RS1)) && digitalRead(LS2) && digitalRead(RS2)) 
+//move forward if there is a non-black object only in front of both front IR sensors 
+{
+goForward(); 
+}
+
+if(digitalRead(LS1) && !(digitalRead(RS1)) && digitalRead(LS2) && !(digitalRead(RS2))) 
+//rotate clockwise if there is a non-black object only in front of both right IR sensors 
+{
+RotateClockwise();
+}
+
+if(!(digitalRead(LS1)) && digitalRead(RS1) && !(digitalRead(LS2)) && digitalRead(RS2)) 
+//rotate counterclockwise if there is a non-black object only in front of both left IR sensors
+{
+RotateCounterClockwise(); 
+}
+
+if(digitalRead(LS1) && !(digitalRead(RS1)) && !(digitalRead(LS2)) && !(digitalRead(RS2))) 
+//move backward then rotate counterclockwise if there is a non-black object only in front of both back IR sensors and right front IR sensor
+{
+goBackward();
+delay (600);
+RotateCounterClockwise(); 
+delay (600);
+}
+
+if(!(digitalRead(LS1)) && digitalRead(RS1) && !(digitalRead(LS2)) && !(digitalRead(RS2))) 
+//move backward then rotate counterclockwise if there is a non-black object only in front of both back IR sensors and left front IR sensor
+{
+goBackward();
+delay (600);
+RotateCounterClockwise(); 
+delay (600);
+}
+
+if(!(digitalRead(LS1)) && !(digitalRead(RS1)) && digitalRead(LS2) && !(digitalRead(RS2))) 
+//move forward if there is a non-black object only in front of both front IR sensors and right back IR sensor
+{
+goForward(); 
+}
+
+if(!(digitalRead(LS1)) && !(digitalRead(RS1)) && !(digitalRead(LS2)) && digitalRead(RS2)) 
+//move forward if there is a non-black object only in front of both front IR sensors and left back IR sensor
+{
+goForward(); 
+}
+
+if(digitalRead(LS1) && digitalRead(RS1) && digitalRead(LS2) && digitalRead(RS2)) 
+// stop if there is a black object in front of all IR sensors 
+{
+stop(); 
+}                 
+}
+// End of the code
