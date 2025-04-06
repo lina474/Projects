@@ -1,0 +1,152 @@
+// Autonomous Warehouse Robot Code
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Initialize LCD 
+LiquidCrystal_I2C lcd(0x27, 16, 2); // address, columns, rows
+
+// Motor pins
+int enA = 3; // Enable pin for motor A (PWM capable)
+int in1 = 2; // Direction pin 1 for motor A
+int in2 = 4; // Direction pin 2 for motor A
+int enB = 5; // Enable pin for motor B (PWM capable)
+int in3 = 6; // Direction pin 1 for motor B
+int in4 = 7; // Direction pin 2 for motor B
+
+// Colour sensor pins
+int sensorOut = 10;
+int S0 = 8;
+int S1 = 9;
+int S2 = 12;
+int S3 = 11;
+
+// Motors Speed 
+const int Speed = 80; // Default speed
+
+void setup() {
+  // Starting the serial communication
+  Serial.begin(9600); 
+
+  // Set color sensor pins
+  pinMode(S0, OUTPUT);
+  pinMode(S1, OUTPUT);
+  pinMode(S2, OUTPUT);
+  pinMode(S3, OUTPUT);
+  pinMode(sensorOut, INPUT);
+
+  digitalWrite(S0, HIGH); // Let S0 High
+  digitalWrite(S1, LOW); // Let S1 Low
+
+  // Motor pins setup
+  pinMode(enA, OUTPUT);
+  pinMode(enB, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(in3, OUTPUT);
+  pinMode(in4, OUTPUT);
+
+  lcd.init(); // Initialize the LCD
+  lcd.backlight(); // Turn on the back light
+}
+
+void loop() {
+  // Colors 
+  int Red, Green, Blue;
+
+  // Reading the color
+  digitalWrite(S2, LOW);
+  digitalWrite(S3, LOW);
+  Red = pulseIn(sensorOut, LOW);
+  digitalWrite(S3, HIGH);
+  Blue = pulseIn(sensorOut, LOW);
+  digitalWrite(S2, HIGH);
+  Green = pulseIn(sensorOut, LOW);
+
+  
+  forward(); // Begin with moving forward
+  lcd.clear(); //Clears LCD
+
+  if (Red >= 24 && Red <= 80 && Green > 115 && Blue > 80 ) {
+    // Red detected
+    lcd.print("Red Color"); // display red color on LCD
+    stop();
+    delay(1000); // Short pause before turning
+    uTurnAndForward();
+  }  else if (Blue >=25 && Blue <= 80 && Red >120 && Green >= 115 ) { 
+    // Blue detected
+    lcd.print("Blue Color"); // display blue color on LCD
+    stop();
+    delay(1000); // Short pause before turning
+    rotateLeftAndForward();
+  } else if ( Green >= 49 && Green <= 115 && Blue >80 && Red >120) { 
+    // Green detected
+    lcd.print("Green Color"); // display green color on LCD   
+    stop();
+    delay(1000); // Short pause before turning
+    rotateRightAndForward();
+  }
+  else{
+    // no color detected
+    lcd.print("No Color"); // display no color on LCD
+  }
+  delay(100); // Short delay between readings
+}
+
+void forward() { // move forward function 
+  analogWrite(enA, Speed);
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  analogWrite(enB, Speed);
+  digitalWrite(in3, HIGH);
+  digitalWrite(in4, LOW);
+}
+
+void stop() { // stop function 
+  analogWrite(enA, 0);
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, LOW);
+  analogWrite(enB, 0);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, LOW);
+}
+
+void uTurnAndForward() { //uturn and move forward function 
+
+  // Simulate a U-turn
+  analogWrite(enA, Speed);
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  analogWrite(enB, Speed);
+  digitalWrite(in3, LOW);
+  digitalWrite(in4, HIGH);
+  delay(1200); // Adjust timing for a 180-degree rotation
+  stop();// Short pause after turning
+  delay(1000); 
+  forward(); // Continue moving forward
+}
+
+void rotateLeftAndForward() { //rotate left and move forward function 
+
+  // Rotate left (90 degrees)
+  analogWrite(enA, Speed);
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  analogWrite(enB, 0); // Stop one wheel to turn
+  delay(690); // Adjust timing for a 90-degree rotation
+  stop();// Short pause after turning
+  delay(1000); 
+  forward(); // Continue moving forward
+}
+
+void rotateRightAndForward() { //rotate right and move forward function 
+
+  // Rotate right (270 degrees or -90 degrees)
+  analogWrite(enB, Speed);
+  digitalWrite(in3, HIGH);
+  digitalWrite(in4, LOW);
+  analogWrite(enA, 0); // Stop one wheel to turn
+  delay(690); // Adjust timing for a 270-degree or -90-degrees rotation
+  stop();// Short pause after turning
+  delay(1000); 
+  forward(); // Continue moving forward
+}
