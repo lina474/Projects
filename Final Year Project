@@ -1,0 +1,521 @@
+// School Bus Multifeatured Safety System Code
+
+#include <LiquidCrystal_I2C.h> //I2C LCD library 
+#include <Adafruit_Fingerprint.h> // adding the Adafruit fingerprint library
+#include <RtcDS1302.h> // RTC DS1302 library 
+#include <ThreeWire.h> //Three-wire communication 
+
+int getFingerprintIDez(); // Declaring the function for getting fingerprint ID
+
+int DateTime(); // Declaring the function for getting timr and date from the RTC
+
+SoftwareSerial mySerial(10,11); // Initializing the TX and RX pins (fingerprint)
+
+// define the three pins of RTC (DAT, CLK and RST)
+ThreeWire project_wires(3,2,4); //DAT, CLK, RST
+
+//Initialize the RTC module (type: DS1302) with the above specified three-wire communication interface
+RtcDS1302<ThreeWire>RTC(project_wires); 
+
+//Make connection between Arduino Mega and the fingerprint sensor
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+
+//set I2C address: 
+LiquidCrystal_I2C lcd(0x27,16,2); // set the LCD address to 0x27 for a 16 chars and 2 line display 
+
+// motor driver pins
+int enA = 7; //set pin 8 to enable B
+int in1 = 22; //set pin 8 to in1
+int in2 = 23; //set pin 8 to in2
+
+const int MaxStudents = 5; // maximum number of students in the bus
+
+//Define 4 variables to help in knowing if a student is left in bus when student exit the but to the school (Count 2)
+// define variables for knowing the time of last scan when student exit to the school and for knowing the current time 
+unsigned long lastScanTime_Count2 = 0; //a variable for knowing the time of last scan when student exit to the school
+unsigned long TimeNow = 0; // a variable for knowing the current time
+int EnterCount = 0; // a variable to count how many student enters the bus at the beginning (Count 1)
+int ExitCount = 0; // // a variable to count how many student exits the bus for first time (count 2)
+
+// two variable to help making the if statement runs only once
+bool Run1 = false;
+bool Run2 = false;
+
+bool Status[4] = {false, false, false, false}; // activators for statuses
+
+// variables to assign the entered/exited student's ID
+int Enter_Now[MaxStudents]; 
+int Exit_Now[MaxStudents];
+
+struct Student { // define a structure 
+  uint16_t fingerprintID; // stores the fingerprint ID of the student. used to match the fingerprint detected by the system with the corresponding student 
+  String StudentName; // to hold the name of the student
+  String Parent_PhoneNumber; //phoneNumber
+  int Count;  // the number of times the student's fingerprint has been detected.
+};
+
+/* initializes an array of Student structs named students with size of MaxStudents.
+Each array's element contains the student's fingerprint ID and name. */
+Student students[MaxStudents] = {
+  { 1, "Lina", "+95995055" },
+  { 2, "Hala", "+95320066"},
+  { 3, "Ali", "+93493353"},
+  { 4, "Sara", "+97888555" },
+  { 5, "Omar", "+95995055" }
+};
+void setup()
+{
+  Serial.begin(9600); // Starting the serial communication
+    
+  Serial1.begin(115200);
+
+  pinMode(8,OUTPUT); //set pin 8 in output mode (red led)
+  pinMode(9,OUTPUT); //set pin 9 in output mode (green led)
+
+  // Define inputs and outputs
+  pinMode(enA, OUTPUT);
+  pinMode(in1, OUTPUT);
+  pinMode (in2, OUTPUT);
+
+  lcd.init(); //initialize LCD
+  lcd.backlight(); //turn the black light on 
+
+  // The AT command (for checking the communication with GSM module)
+  Serial1.println("AT");
+  delay(100);
+  // set the GSM in the SMS text mode 
+  Serial1.println("AT+CMGF=1");
+  delay(100);
+
+  // Initialize RTC module
+  RTC.Begin();
+
+  // initialize the compilation date and time
+    RtcDateTime Compile_DT = RtcDateTime(__DATE__ , __TIME__);
+
+    //If statement to check if the RTC module's date and time are not valid.
+      if (!RTC.IsDateTimeValid()) 
+      { //not valid becaise RTC module is being used for the first time or the RTC's battery is low or missing.
+          RTC.SetDateTime(Compile_DT); //sets date and time of the RTC module to the value stored in the Compile_DT variable (from the sketch compilation)
+      }
+
+      //if RTC is write-protected (if sketch cannot modify the date and time)
+      if (RTC.GetIsWriteProtected())
+      {
+          RTC.SetIsWriteProtected(false); //disables the write protection in order to allow the sketch to modify the date and time
+
+      }
+
+      //if the RTC is not running (it was either just powered on or the power source was interrupted)
+      if (!RTC.GetIsRunning())
+      {
+          RTC.SetIsRunning(true); // sets RTC to the running state. Ensures that the RTC module is tracking the time.
+      }
+
+      RtcDateTime current = RTC.GetDateTime(); //retrieves the current date and time from RTC and stores it in the (current) variable.
+
+      /*If the current date and time are earlier than the compiled time (RTC module has lost power or was just started).
+      it means that the module's date and time need to be reset */
+      if (current < Compile_DT) 
+      {
+          RTC.SetDateTime(Compile_DT); //updates the RTC module's date and time to the compiled time.
+      } 
+
+  while (!Serial);  //loop that waits until the serial connection is initialized.
+  delay(100);
+  Serial.println("\n\nAdafruit finger detect test");
+
+  // set the data rate for the sensor serial port
+  finger.begin(57600); 
+  delay(5); //allowing time for the sensor to initialize (5milliseconds)
+  if (finger.verifyPassword()) { //checks if the fingerprint sensor's password verification is successful
+    Serial.println("Found fingerprint sensor!");
+  } else {
+    Serial.println("Did not find fingerprint sensor :(");
+    while (1) { delay(1); } // an infinite loop to halt the program
+  }
+
+  finger.getTemplateCount(); // retrieves the count of fingerprint templates stored in the sensor's memory
+
+  // checks the number of fingerprint templates stored in the sensor's memory 
+  if (finger.templateCount == 0) { // if the templateCount variable is equal to zero (zero fingerprint data)
+    Serial.print("Sensor doesn't contain any fingerprint data. Please run the 'enroll' code.");
+  }
+  else {
+    Serial.println("Waiting for valid finger...");
+    // display the fingerprint templates' number stored in the sensor's memory
+      Serial.print("Sensor contains "); Serial.print(finger.templateCount); Serial.println(" templates"); 
+  }
+}
+
+void loop()                     // run over and over again
+{
+  DateTime(); // calling DateTime() function 
+  getFingerprintID(); // calling getFingerprintID() function 
+    // Pass any incoming data from the serial monitor to the GSM 
+  while (Serial.available()) {
+    Serial1.write(Serial.read());
+  }
+}
+
+// define the getFingerprintID()
+uint8_t getFingerprintID() { // obtaining and processing fingerprint data
+  uint8_t p = finger.getImage(); // calls the getImage() method on the finger object to capture an image of a fingerprint (stored in the p variable)
+RtcDateTime current = RTC.GetDateTime();
+  // for loop and two if statements to determine the movement of linear acuator
+  for (int i = 0; i < MaxStudents ; i++) {
+    TimeNow = millis(); // detect the current time
+
+    /* if a student is left in bus (students entering - students exiting = 1) in Count 2, after 5m from last scan in Count 2.
+       Move linear acuator forward to open a window. */ 
+  if (students[i].Count != 2  &&  Enter_Now[i] != Exit_Now[i] && EnterCount - ExitCount == 1  && Status[2] && !Run1 && TimeNow -  lastScanTime_Count2 > 300000) { // If student didn't exit the bus 
+      // move forward (linear actuator)
+      digitalWrite(in1, LOW);
+      digitalWrite(in2, HIGH);
+      analogWrite(enA, 255);  
+
+      delay(200); //delay for the system flow
+      
+      // Send SMS to the parent
+      Serial1.println("AT+CMGS=\"" + students[i].Parent_PhoneNumber + "\"");
+      delay(3000);
+      Serial1.print("On "); Serial1.print(current.Day()); Serial1.print("/"); Serial1.print(current.Month()); Serial1.print("/"); Serial1.print(current.Year()); 
+      Serial1.print(" At "); Serial1.print(current.Hour()); Serial1.print(":"); Serial1.print(current.Minute()); Serial1.print(":"); Serial1.print(current.Second()); 
+      Serial1.print(". "); 
+      Serial1.print(students[i].StudentName);
+      Serial1.print(" Didn't exit the bus (Al Khuwair), NEEDS HELP"); // the text message 
+      delay(3000);
+      Serial1.write(26);
+      delay(2000);
+      
+      // Send SMS to the school
+      Serial1.println("AT+CMGS=\"+92588115\"");   
+      delay(3000);         
+      Serial1.print("On "); Serial1.print(current.Day()); Serial1.print("/"); Serial1.print(current.Month()); Serial1.print("/"); Serial1.print(current.Year()); 
+      Serial1.print(" At "); Serial1.print(current.Hour()); Serial1.print(":"); Serial1.print(current.Minute()); Serial1.print(":"); Serial1.print(current.Second()); 
+      Serial1.print(". "); 
+      Serial1.print(students[i].StudentName);
+      Serial1.print(" Didn't exit the bus (Al Khuwair), NEEDS HELP"); // the text message 
+      delay(3000);     
+      Serial1.write(26);
+      delay(2000);
+
+      // Send SMS to the driver
+      Serial1.println("AT+CMGS=\"+90669096\"");  
+      delay(3000);    
+      Serial1.print("On "); Serial1.print(current.Day()); Serial1.print("/"); Serial1.print(current.Month()); Serial1.print("/"); Serial1.print(current.Year()); 
+      Serial1.print(" At "); Serial1.print(current.Hour()); Serial1.print(":"); Serial1.print(current.Minute()); Serial1.print(":"); Serial1.print(current.Second()); 
+      Serial1.print(". "); 
+      Serial1.print(students[i].StudentName);
+      Serial1.print(" Didn't exit the bus (Al Khuwair), NEEDS HELP"); // the text message 
+      delay(3000);
+      Serial1.write(26);
+      delay(2000);
+     
+      
+      // set Run1 on true so that it runs only once
+      Run1 = true;           
+      }
+       /* if a student that was left in bus is now rescued, and his fingerprint is scanned
+       (students exiting = students entering ) in Count 2. Move linear acuator backward.*/ 
+      if (ExitCount == EnterCount && !Run2  && Status[2]){
+      // move backward (linear actuator)
+      digitalWrite(in1, HIGH);
+      digitalWrite(in2, LOW);
+      analogWrite(enA, 255);
+      // set Run2 on true so that it runs only once              
+      Run2 = true;              
+      }     
+
+     
+  } // end for loop       
+  // switch statement checks p value and performs different actions according to its value
+  switch (p) {
+    case FINGERPRINT_OK: // if image capture was successful, print "Image taken" to the serial monitor.
+      Serial.println("Image taken");
+      break;
+    case FINGERPRINT_NOFINGER: // if no finger was detected, print "No finger detected" to the serial monitor and returns the value of p
+      Serial.println("No finger detected");
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR: /* if a communication error occurred during the fingerprint capture process, 
+                                          prints "Communication error" to the serial monitor and returns the value of p. */
+      Serial.println("Communication error");
+      return p;
+    case FINGERPRINT_IMAGEFAIL: //if an error occurred during the imaging process, print "Imaging error" to the serial monitor and returns the value of p.
+      Serial.println("Imaging error");
+      return p;
+    default: /*If p does not match any of the above cases, it means an unknown error occurred.
+               The code prints "Unknown error" to the serial monitor and returns the value of p. */
+      Serial.println("Unknown error");
+      return p;
+  } // end case statement
+
+  // OK success!
+
+ /* calls the image2Tz() method on the finger object to convert the captured fingerprint image to a template. 
+ The return value is stored in the p variable. */
+  p = finger.image2Tz();
+  switch (p) {
+    case FINGERPRINT_OK: // if image conversion was successful, print "Image converted" to the serial monitor
+      Serial.println("Image converted");
+      break;
+    case FINGERPRINT_IMAGEMESS: // if captured fingerprint image is too messy, print "Image too messy" to the serial monitor and returns the value of p.
+      Serial.println("Image too messy");
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR: /* if a communication error occurred during the image conversion process, 
+                                        prints "Communication error" to the serial monitor and returns the value of p.*/
+      Serial.println("Communication error");
+      return p;
+    case FINGERPRINT_FEATUREFAIL: /*if fingerprint features could not be properly identified, 
+                                  print "Could not find fingerprint features" to the serial monitor and returns the value of p.*/
+      Serial.println("Could not find fingerprint features");
+      return p;
+    case FINGERPRINT_INVALIDIMAGE: /* if the image provided for conversion is invalid or does not contain recognizable fingerprint features,
+                                    print "Could not find fingerprint features" to the serial monitor and returns the value of p.*/
+      Serial.println("Could not find fingerprint features");
+      return p;
+    default: /*If p does not match any of the above cases, it means an unknown error occurred.
+               The code prints "Unknown error" to the serial monitor and returns the value of p. */
+      Serial.println("Unknown error");
+      return p;
+  } // end switch statement 
+
+  // OK converted!
+  p = finger.fingerSearch(); /*call the fingerSearch() method on the finger object. 
+  performs a search for a matching fingerprint template in the sensor's memory and assigns the return value to the variable p.*/
+  if (p == FINGERPRINT_OK) { // if a matching fingerprint template has been found, print "Found a print match!" to the serial monitor
+    for (int i = 0; i < MaxStudents; i++) { //for loop ro find a matching fingerprint ID and identify the enterance and exit for each student. 
+      if (finger.fingerID == students[i].fingerprintID) { //if the fingerID of the current finger object = fingerprintID of i element of the students array. 
+        Serial.print("Found a print match for "); // print "Found a print match for "
+        Serial.print(students[i].StudentName); //print the student's name associated with the matching fingerprint ID.
+        Serial.println("!"); //print "!"
+
+        students[i].Count++; // Increment fingerprint occurrence count (keeps track of the occurrence count of the fingerprint for the specific student). 
+
+        delay(100); //delay for the system flow
+        digitalWrite(9,HIGH); //green LED on
+        delay(1000); // stay on for 1s
+        digitalWrite(9,LOW); //green LED off
+
+          if (students[i].Count == 1) { // Enter the bus first time (go to school)
+            Status[1] = true; // activate first status 
+            // print on LCD student's name and that he/she enters the bus (to the school)
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print(students[i].StudentName);
+            lcd.print(" enters bus");
+            lcd.setCursor(0, 1);
+            lcd.print("->To the school");
+            delay(1000);
+          
+            // Send SMS to the parent 
+            Serial1.println("AT+CMGS=\"" + students[i].Parent_PhoneNumber + "\"");
+            delay(200);
+            Serial1.print("On "); Serial1.print(current.Day()); Serial1.print("/"); Serial1.print(current.Month()); Serial1.print("/"); Serial1.print(current.Year()); 
+            Serial1.print(" At "); Serial1.print(current.Hour()); Serial1.print(":"); Serial1.print(current.Minute()); Serial1.print(":"); Serial1.print(current.Second()); 
+            Serial1.print(". "); 
+            Serial1.print(students[i].StudentName);
+            Serial1.print(" Entered the Bus -> To the school"); // the text message 
+            delay(200);
+            Serial1.write(26);
+            delay(100);
+
+            EnterCount++; // increment the number of student entering
+
+            Enter_Now[i] = students[i].fingerprintID; // Assign the entered Fingerprint ID to Enter_Now[i]
+          }
+          if (students[i].Count == 2) { // Exit the bus first time (go to school)
+          
+            lastScanTime_Count2 = millis(); // determine time in each fingerprint scan 
+            Status[2] = true; //activate second status 
+
+            // print on LCD student's name and that he/she exits the bus (to the school)
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print(students[i].StudentName);
+            lcd.print(" exits bus");
+            lcd.setCursor(0, 1);
+            lcd.print("->To the school");
+            lastScanTime_Count2 = millis();
+            delay(1000);
+
+            // Send SMS to the parent 
+            Serial1.println("AT+CMGS=\"" + students[i].Parent_PhoneNumber + "\"");
+            delay(200);
+            Serial1.print("On "); Serial1.print(current.Day()); Serial1.print("/"); Serial1.print(current.Month()); Serial1.print("/"); Serial1.print(current.Year()); 
+            Serial1.print(" At "); Serial1.print(current.Hour()); Serial1.print(":"); Serial1.print(current.Minute()); Serial1.print(":"); Serial1.print(current.Second()); 
+            Serial1.print(". "); 
+            Serial1.print(students[i].StudentName);
+            Serial1.print(" Exited the Bus -> To the school"); // the text message 
+            delay(200);
+            Serial1.write(26);
+            delay(100);
+
+            ExitCount++; // increment the number of student exiting
+
+            Exit_Now[i] = students[i].fingerprintID; // Assign the entered Fingerprint ID to Exit_Now[i]
+
+          }               
+
+          if (students[i].Count == 3) { // Enter the bus second time (go to school)
+          // print on LCD student's name and that he/she enters the bus (to home) 
+            Status[3] = true; // activate third status 
+            lcd.clear();
+            lcd.setCursor(0, 0);
+            lcd.print(students[i].StudentName);
+            lcd.print(" enters bus");
+            lcd.setCursor(0, 1);
+            lcd.print("->To home");
+            delay(1000);
+
+            // Send SMS to the parent 
+            Serial1.println("AT+CMGS=\"" + students[i].Parent_PhoneNumber + "\"");
+            delay(200);
+            Serial1.print("On "); Serial1.print(current.Day()); Serial1.print("/"); Serial1.print(current.Month()); Serial1.print("/"); Serial1.print(current.Year()); 
+            Serial1.print(" At "); Serial1.print(current.Hour()); Serial1.print(":"); Serial1.print(current.Minute()); Serial1.print(":"); Serial1.print(current.Second()); 
+            Serial1.print(". "); 
+            Serial1.print(students[i].StudentName);
+            Serial1.print(" Entered the Bus -> To home"); // the text message 
+            delay(200);
+            Serial1.write(26);
+            delay(100);
+
+          }
+
+          if (students[i].Count == 4) { // Exit the bus second time (go to school)
+          // print on LCD student's name and that he/she exits the bus (to home)
+          Status[4] = true; // activate fourth status 
+          delay(100);
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print(students[i].StudentName);
+          lcd.print(" exits bus");
+          lcd.setCursor(0, 1);
+          lcd.print("->To home");
+          delay(1000);
+
+          // Send SMS to the parent 
+          Serial1.println("AT+CMGS=\"" + students[i].Parent_PhoneNumber + "\"");
+          delay(200);
+          Serial1.print("On "); Serial1.print(current.Day()); Serial1.print("/"); Serial1.print(current.Month()); Serial1.print("/"); Serial1.print(current.Year()); 
+          Serial1.print(" At "); Serial1.print(current.Hour()); Serial1.print(":"); Serial1.print(current.Minute()); Serial1.print(":"); Serial1.print(current.Second()); 
+          Serial1.print(". "); 
+          Serial1.print(students[i].StudentName);
+          Serial1.print(" Exited the Bus -> To home"); // the text message 
+          delay(200);
+          Serial1.write(26);
+          delay(100);
+          }
+          break;
+    }
+  }
+
+  } else if (p == FINGERPRINT_PACKETRECIEVEERR) { /* if a communication error occurred during the fingerprint search process, 
+                                        print "Communication error" to the serial monitor and returns the value of p.*/
+    Serial.println("Communication error"); 
+    return p;
+  } else if (p == FINGERPRINT_NOTFOUND) { /* if no matching fingerprint template was found in the sensor's memory, 
+                                          print "Did not find a match" to the serial monitor and returns the value of p */
+    
+              
+    
+    delay(100); //delay for the system flow
+    digitalWrite(8,HIGH); //red LED on
+    delay(1000); // stay on for 1s
+    digitalWrite(8,LOW); //red LED off
+
+    for (int i = 0; i < MaxStudents ; i++) {
+      if (Status[1] && students[i].Count == 1){ // print on LCD that there is no match and don't enter (status 1)
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("No match found");
+              lcd.setCursor(0, 1);
+              lcd.print("DONT ENTER!");
+              delay (1000); //delay for the system flow
+            } 
+      if (Status[2] && students[i].Count == 2){ // print on LCD that there is no match and don't enter (status 2)
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("No match found");
+              lcd.setCursor(0, 1);
+              lcd.print("TRY AGAIN");
+              delay (1000); //delay for the system flow
+            } 
+      if (Status[3]&& students[i].Count == 3){ // print on LCD that there is no match and try again (status 3)
+
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("No match found");
+              lcd.setCursor(0, 1);
+              lcd.print("DONT ENTER!");
+              delay (1000); //delay for the system flow
+            } 
+      if (Status[4]&& students[i].Count == 4){ // print on LCD that there is no match and try again (status 4)
+
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("No match found");
+              lcd.setCursor(0, 1);
+              lcd.print("TRY AGAIN");
+              delay (1000); //delay for the system flow
+            } }
+    return p;
+
+  } else { // an unknown error occurred during the fingerprint search process. print "Unknown error" and returns the value of p
+    Serial.println("Unknown error");
+    return p;
+  }
+
+  // found a match!
+  Serial.print("Found ID #"); Serial.print(finger.fingerID); //print the ID or index associated with the matched fingerprint template in the fingerprint sensor's memory
+  Serial.print(" with confidence of "); Serial.println(finger.confidence); //print the similarity score associated with the fingerprint match.
+
+  return finger.fingerID;  // the code exits the current function or method and returns the matched fingerprint ID to the caller.
+} // end function 
+
+// returns -1 if failed, otherwise returns ID #
+int getFingerprintIDez() {  //// define the getFingerprintIDez()
+
+  uint8_t p = finger.getImage(); // call the getImage() method on the finger object to capture a fingerprint image.
+  if (p != FINGERPRINT_OK)  return -1; // indicating a failure in capturing the fingerprint image. return -1
+
+  p = finger.image2Tz(); // calls the image2Tz() method on the finger object to convert the captured fingerprint image into a template
+  if (p != FINGERPRINT_OK)  return -1; //a failure in converting the fingerprint image to a template. returns -1.
+
+  p = finger.fingerFastSearch(); //call the fingerFastSearch() method on the finger object to search for a matching fingerprint template in the sensor's memory
+  if (p != FINGERPRINT_OK)  return -1; // indicating a failure in finding a matching fingerprint template. returns -1.
+
+  // found a match!
+  Serial.print("Found ID #"); Serial.print(finger.fingerID); //print the ID or index associated with the matched fingerprint template in the fingerprint sensor's memory
+  Serial.print(" with confidence of "); Serial.println(finger.confidence); //print the similarity score associated with the fingerprint match.
+
+  return finger.fingerID; //// the code exits the current function or method and returns the matched fingerprint ID to the caller.
+} //end function 
+
+int DateTime() {
+  //Get the current date and time from the RTC module
+  RtcDateTime current = RTC.GetDateTime();
+
+  lcd.clear();
+  // Display time on LCD
+  lcd.setCursor(0, 0); //set the cursor to the first column and first row
+  lcd.print("Time: "); 
+  lcd.print(current.Hour()); // Print current hour
+  lcd.print(":"); 
+  lcd.print(current.Minute()); // Print current minute
+  lcd.print(":"); 
+  lcd.print(current.Second()); // Print current second
+
+  // Display date on LCD
+  lcd.setCursor(0, 1); // set the cursor to the first column and second row
+  lcd.print("Date: "); 
+  lcd.print(current.Day()); // Print current day
+  lcd.print("/"); 
+  lcd.print(current.Month()); // Print current month
+  lcd.print("/"); 
+  lcd.print(current.Year()); // Print current year
+
+  delay(500); // Update once per 0.5s
+
+  return 0;
+}
